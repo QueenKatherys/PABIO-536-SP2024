@@ -1,0 +1,666 @@
+# Homework 7
+Start by Installing and Importing the necessary packages. Note that we will need to set some specific settings to get everything to run properly in Colaboratory.
+
+# Import required libraries
+%matplotlib inline
+#!pip install umap-learn[plot]
+#!pip install scanpy
+#!pip3 install igraph
+
+import matplotlib as mpl
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from   sklearn.decomposition import PCA
+from   sklearn.manifold import TSNE
+from   sklearn.preprocessing import StandardScaler
+import h5py
+from umap import UMAP
+import scanpy as sc
+import anndata as ad
+
+
+np.set_printoptions(suppress=True)
+np.set_printoptions(precision=4)
+
+plt_style = 'seaborn-notebook'
+pd.set_option('styler.format.precision', 2)
+pd.set_option('styler.render.max_columns',10)
+
+
+import numpy as np
+import scipy
+from scipy import stats
+import statsmodels.stats.multitest as smm
+import matplotlib.pyplot as plt
+from statsmodels.formula.api import ols
+import seaborn as sns
+import csv
+import os
+import sys
+import argparse
+from time import time
+
+import altair as alt
+import scipy.spatial as sp, scipy.cluster.hierarchy as hc
+
+# and this command will allow multiple outputs from the same cell, rather than just the last one run
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = "all"
+## PCA for single cell gene expression
+
+We'll start by examining a sample dataset of single cell RNAseq of human lung samples originally published by Zilionas et al., which was mentioned by Dr. Duffy in class:
+
+>*Zilionis R et al. (2019). Single-cell transcriptomics of human and mouse lung cancers reveals conserved myeloid populations across individuals and species. Immunity 50(5), 1317-1334. [PMID: 30979687](https://pubmed.ncbi.nlm.nih.gov/30979687/)*
+
+This dataset has been downsampled to a few hundred cells and 500 genes for ease of analysis. Cells with very low and very high (possible doublet) numbers of detected genes were removed, along with genes with high proportions of mitchondiral gene reads. Raw counts were log transformed after adding 1 to all counts.
+
+The code below will calculate and plots PCA for the single cell data.
+
+
+
+# Mounting your google drive to this notebook
+#from google.colab import drive
+#drive.mount('/content/drive')
+import pandas as pd
+# Read the single cell dataset
+#lung_scrnaseq = pd.read_csv('/content/drive/My Drive/Colab Notebooks/sampled_zilionis_lung_scRNAseq_log.csv') #set to your own directory
+# Read the single cell dataset
+lung_scrnaseq = pd.read_csv(r"C:\Users\Kathleen\OneDrive\Documents\Bioinformatics Spring 2024\Homework\Homework 7\sampled_zilionis_lung_scRNAseq_log.csv")
+
+lung_scrnaseq.head()# Here, the cellType is the labelled cell type, the barcode is the unique cell ID
+lung_scrnaseq_meta = lung_scrnaseq.loc[:,:'Tissue']
+lung_scrnaseq_meta
+celltypes = set(lung_scrnaseq.cellType) # Finding the set of unique cell types
+celltypes
+# Running tSNE
+lung_scrnaseq_tsne = TSNE(n_components=2, perplexity=50,
+                                random_state=3425).fit_transform(lung_scrnaseq.loc[:,"MT-RNR2":])
+
+# Plotting tSNE
+fig = plt.figure()
+ax = fig.add_subplot(111)
+for celltype in celltypes:
+  ax.scatter(lung_scrnaseq_tsne[lung_scrnaseq['cellType'] == celltype, 0],
+             lung_scrnaseq_tsne[lung_scrnaseq['cellType'] == celltype, 1],
+             alpha=0.75, marker=".", s=5, label=celltype)
+ax.set_xlabel('t-SNE 1')
+ax.set_ylabel('t-SNE 2')
+ax.legend(loc="best")
+plt.show()
+
+# Running UMAP
+lung_scrnaseq_umap = UMAP().fit_transform(lung_scrnaseq.loc[:,"MT-RNR2":])
+
+# Plotting UMAP
+fig = plt.figure()
+ax = fig.add_subplot(111)
+for celltype in celltypes:
+  ax.scatter(lung_scrnaseq_umap[lung_scrnaseq['cellType'] == celltype, 0],
+             lung_scrnaseq_umap[lung_scrnaseq['cellType'] == celltype, 1],
+             alpha=0.75, marker=".", s=5, label=celltype)
+ax.set_xlabel('UMAP 1')
+ax.set_ylabel('UMAP 2')
+ax.legend(loc="best")
+plt.show()
+
+# Question 1:
+Calculate the PCA-transformed data. Plot the first two principal components (PC1 and PC2). How many principal components do we need to capture 50% of data variability?
+# Scale the data and run PCA
+
+lung_scrnaseq_scaled =  StandardScaler().fit_transform(lung_scrnaseq.loc[:, 'MT-RNR2':])
+lung_scrnaseq_scaled
+# Summarizing the parameters of the scaled data
+pd.DataFrame(data=lung_scrnaseq_scaled).describe()
+#Now, we calculate the PCA transform and apply it to the data
+
+# Setting up the PCA model
+lung_scrnaseq_pca = PCA().fit(lung_scrnaseq_scaled)
+
+# PCA transform data
+lung_scrnaseq_pca_data = lung_scrnaseq_pca.transform(lung_scrnaseq_scaled)
+
+# We can see how much variation(in percentage) each PC captures, by looking at the explained variance ratio, the numbers decrease as we move down the list
+print(lung_scrnaseq_pca.explained_variance_ratio_)
+lung_scrnaseq_pca_data # sanity check 
+# This function helps us to draw the principal component axes on the plots below
+def draw_vector(v0, v1, ax=None):
+    ax = ax or plt.gca()
+    arrowprops=dict(arrowstyle='->',
+                    linewidth=2,
+                    shrinkA=0, shrinkB=0)
+    ax.annotate('', v1, v0, arrowprops=arrowprops)
+lung_scrnaseq_meta # sanity check 
+celltypes = set(lung_scrnaseq.cellType) # Finding the set of unique cell types ; recall this was set before 
+celltypes
+
+# Plotting time !!!
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+
+
+ax.scatter(lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'B cells', 0],
+          lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'B cells', 1], alpha=0.4,c='r', label="B cells")
+ax.scatter(lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'Monocytes', 0],
+          lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'Monocytes', 1], alpha=0.4,c='m', label='Monocytes')
+ax.scatter(lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'NK cells', 0],
+          lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'NK cells', 1], alpha=0.4,c='cyan', label='NK cells')
+ax.scatter(lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'Neutrophils', 0],
+          lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'Neutrophils', 1], alpha=0.4,c='b', label='Neutrophils')
+ax.scatter(lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'T cells', 0],
+          lung_scrnaseq_pca_data[lung_scrnaseq_meta.cellType == 'T cells', 1], alpha=0.4,c='y', label='T cells')
+
+def draw_vector(start, end, ax=None):
+    ax.annotate('', end, start, arrowprops=dict(arrowstyle='->', linewidth=2))
+
+draw_vector([0, 0], [0, np.sqrt(lung_scrnaseq_pca.explained_variance_[0])], ax=ax) # Drawing the PC1 vector length proportional to the explained variance
+draw_vector([0, 0], [np.sqrt(lung_scrnaseq_pca.explained_variance_[1]), 0], ax=ax) # Drawing the PC2 vector length proportional to the explained variance
+
+ax.set_xlabel('PC1 ({0:.2f}%)'.format(lung_scrnaseq_pca.explained_variance_ratio_[0]*100))
+ax.set_ylabel('PC2 ({0:.2f}%)'.format(lung_scrnaseq_pca.explained_variance_ratio_[1]*100))
+
+plt.legend(loc="best")
+plt.show()
+
+
+
+# How many principal components are needed to explain 50% of the variance in the data?
+
+cum_var_exp = np.cumsum(lung_scrnaseq_pca.explained_variance_ratio_)
+n_components = np.argmax(cum_var_exp > 0.5) + 1
+n_components
+
+# Question 2
+
+Identify and plot the top gene most strongly associated with PC1 and the top gene most strongly associated with PC2 on the principal component plot. What are the names of these genes?
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Assuming lung_scrnaseq_pca and lung_scrnaseq are already defined
+
+# Linear transformation for PC1 and PC2, weighted by the proportion of variation explained
+pc1_loadings = lung_scrnaseq_pca.components_[0, :].T
+pc1_weighted_loadings = pc1_loadings * lung_scrnaseq_pca.explained_variance_[0]
+
+pc2_loadings = lung_scrnaseq_pca.components_[1, :].T
+pc2_weighted_loadings = pc2_loadings * lung_scrnaseq_pca.explained_variance_[1]
+
+# Get the names of the genes
+gene_names = lung_scrnaseq.loc[:, 'MT-RNR2':].columns.values
+
+# Identify the top gene for PC1
+top_pc1_gene_idx = np.argmax(np.abs(pc1_weighted_loadings))
+top_pc1_gene = gene_names[top_pc1_gene_idx]
+
+# Identify the top gene for PC2
+top_pc2_gene_idx = np.argmax(np.abs(pc2_weighted_loadings))
+top_pc2_gene = gene_names[top_pc2_gene_idx]
+
+# Plotting
+fig, ax = plt.subplots()
+ax.scatter(lung_scrnaseq_pca.components_[0, :] * lung_scrnaseq_pca.explained_variance_[0],
+           lung_scrnaseq_pca.components_[1, :] * lung_scrnaseq_pca.explained_variance_[1])
+
+# Annotate the top genes
+ax.annotate(text=top_pc1_gene,
+            xy=(lung_scrnaseq_pca.components_[0, top_pc1_gene_idx] * lung_scrnaseq_pca.explained_variance_[0],
+                lung_scrnaseq_pca.components_[1, top_pc1_gene_idx] * lung_scrnaseq_pca.explained_variance_[1]),
+            arrowprops=dict(arrowstyle='<-', linewidth=1, shrinkA=0.9))
+
+ax.annotate(text=top_pc2_gene,
+            xy=(lung_scrnaseq_pca.components_[0, top_pc2_gene_idx] * lung_scrnaseq_pca.explained_variance_[0],
+                lung_scrnaseq_pca.components_[1, top_pc2_gene_idx] * lung_scrnaseq_pca.explained_variance_[1]),
+            arrowprops=dict(arrowstyle='<-', linewidth=1, shrinkA=0.9))
+
+# Set plot labels and title
+ax.set_xlabel('PC1')
+ax.set_ylabel('PC2')
+ax.set_title('Top Genes Associated with PC1 and PC2')
+
+plt.show()
+
+print(f"Top gene associated with PC1: {top_pc1_gene}")
+print(f"Top gene associated with PC2: {top_pc2_gene}")
+
+# Question 3:
+
+Prepare a data frame that is compatible with setting up interactive plots in `altair`. Include in this data frame information about the cell type, as well as the PCA, tSNE, and UMAP transformations for the data (i.e., the information used to generate the PCA, tSNE, and UMAP visualizations). You only need to include the data for plotting the **first 5 principal components** in this data frame.
+
+*Hint*: The important thing about making that work is to consolidate a large data frame that has separate columns to represent each of the axes that you want to show in your interactively linked plots, as well as any other metadata columns. `altair` can link information on the same row in different columns into different, connected plots.
+lung_scrnaseq_meta.head() # Information about cell type 
+lung_scrnaseq_tsne.shape # TSNE transformation of the data
+lung_scrnaseq_umap.shape #UMAP transformation of the data
+
+lung_scrnaseq_pca_data.shape #PCA transformation of the data
+lung_scrnaseq_tsne_DF = pd.DataFrame(lung_scrnaseq_tsne, columns = ['TSNE1','TSNE2']) #TSNE transformation of the data
+lung_scrnaseq_tsne_DF
+lung_scrnaseq_umap_DF = pd.DataFrame(lung_scrnaseq_umap, columns = ['UMAP1','UMAP2']) #UMAP transformation of the data
+lung_scrnaseq_umap_DF
+lung_scrnaseq_pca_DF = pd.DataFrame(lung_scrnaseq_pca_data[:,:5], columns = ['PC1','PC2','PC3','PC4','PC5']) #PCA transformation of the data
+lung_scrnaseq_pca_DF
+import pandas as pd
+
+# Assuming lung_scrnaseq_pca_DF, lung_scrnaseq_tsne_DF, lung_scrnaseq_umap_DF, and lung_scrnaseq_meta are already defined
+
+# Display the number of columns in each DataFrame
+print("lung_scrnaseq_meta columns:", lung_scrnaseq_meta.shape[1])
+print("lung_scrnaseq_pca_DF columns:", lung_scrnaseq_pca_DF.iloc[:, :5].shape[1])  # Only first 5 PCs
+print("lung_scrnaseq_tsne_DF columns:", lung_scrnaseq_tsne_DF.shape[1])
+print("lung_scrnaseq_umap_DF columns:", lung_scrnaseq_umap_DF.shape[1])
+
+# Concatenate the DataFrames along columns
+lung_scrnaseq_combined_DF = pd.concat([lung_scrnaseq_meta, 
+                                       lung_scrnaseq_pca_DF.iloc[:, :5],  # Only first 5 principal components
+                                       lung_scrnaseq_tsne_DF, 
+                                       lung_scrnaseq_umap_DF], axis=1)
+
+# Display the columns of the combined DataFrame to ensure correctness
+print(lung_scrnaseq_combined_DF.columns)
+print(lung_scrnaseq_combined_DF.shape)
+
+# Rename columns for clarity
+new_columns = list(lung_scrnaseq_meta.columns) + [f'PC{i+1}' for i in range(5)] + ['TSNE1', 'TSNE2', 'UMAP1', 'UMAP2']
+
+# Check the length of new columns and DataFrame columns
+print("Number of columns in combined DataFrame:", lung_scrnaseq_combined_DF.shape[1])
+print("Number of new column names:", len(new_columns))
+
+# Ensure the length matches before renaming
+if lung_scrnaseq_combined_DF.shape[1] == len(new_columns):
+    lung_scrnaseq_combined_DF.columns = new_columns
+else:
+    print("Column length mismatch, please check the DataFrames and column names.")
+
+# Display the combined DataFrame
+lung_scrnaseq_combined_DF.head()
+
+lung_scrnaseq_combined_DF
+# Question 4:
+Make a set of interactive `altair` plots, showing in the left plot (which allows selection) a scatter plot of PC1 and PC2. Set this plot such that you can highlight the selection defined by a selection of both the x and y axes. Color the points according to cell type.  
+
+Couple this selection interval to show how selected points appear on a scatter plot of PC2 vs. PC3, PC3 vs. PC4, and PC4 vs. PC5. There should be 4 plots linked together total with this setup.
+
+Which plot of which PCs no longer shows clear separation between the cell types?
+
+import altair as alt
+import pandas as pd
+
+# Assuming lung_scrnaseq_combined_DF is already defined and contains the necessary data
+
+# Create an interval selection
+selection = alt.selection_interval(encodings=['x', 'y'])
+
+# Base chart with selection for PC1 vs. PC2
+base = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='PC1',
+    y='PC2',
+    color='cellType'
+).add_params(
+    selection
+).properties(
+    width=300,
+    height=300,
+    title='PC1 vs PC2'
+)
+
+# Linked charts
+pc2_vs_pc3 = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='PC2',
+    y='PC3',
+    color=alt.condition(selection, 'cellType', alt.value('lightgray'))
+).properties(
+    width=300,
+    height=300,
+    title='PC2 vs PC3'
+)
+
+pc3_vs_pc4 = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='PC3',
+    y='PC4',
+    color=alt.condition(selection, 'cellType', alt.value('lightgray'))
+).properties(
+    width=300,
+    height=300,
+    title='PC3 vs PC4'
+)
+
+pc4_vs_pc5 = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='PC4',
+    y='PC5',
+    color=alt.condition(selection, 'cellType', alt.value('lightgray'))
+).properties(
+    width=300,
+    height=300,
+    title='PC4 vs PC5'
+)
+
+# Combine all plots
+combined_plots = alt.hconcat(base, pc2_vs_pc3, pc3_vs_pc4, pc4_vs_pc5).resolve_legend(
+    color="independent"
+)
+
+combined_plots
+
+
+
+1. **PC1 vs PC2 (First Image)**
+   - Clear separation between cell types, especially between Neutrophils, Monocytes, and T cells.
+   
+2. **PC2 vs PC3 (First Image)**
+   - Reasonable separation, with distinct clusters for Neutrophils, T cells, and Monocytes.
+   
+3. **PC3 vs PC4 (Second Image)**
+   - The separation is less distinct. There is significant overlap between the cell types.
+   
+4. **PC4 vs PC5 (Second Image)**
+   - This plot shows a high degree of overlap, making it difficult to distinguish between the cell types.
+   
+5. **PC2 vs PC3 (Third Image)**
+   - Similar to the first PC2 vs PC3 plot, shows reasonable separation but not as clear as PC1 vs PC2.
+   
+6. **PC3 vs PC4 (Third Image)**
+   - Consistent with the second PC3 vs PC4 plot, showing overlap and lack of clear separation.
+
+### Conclusion:
+- The plot of **PC4 vs PC5** shows the least clear separation between the cell types, indicating significant overlap and making it difficult to distinguish between them. The **PC3 vs PC4** plots also show considerable overlap, but the overlap in the **PC4 vs PC5** plot is more pronounced.
+# Question 5:
+
+Make a set of interactive `altair` plots, showing in the left plot (which allows selection) a scatter plot of UMAP1 and UMAP2. Set this plot such that you can highlight the selection defined by a selection of both the x and y axes. Color the points according to cell type.  
+
+Couple this selection interval to show how selected points appear on a scatter plot of TSNE1 vs. TSNE2 and PC1 vs. PC2. There should be 3 plots linked together total with this setup.
+
+There should be a small cluster of points near the main monocyte cluster in the UMAP plot that is not quite as uniformly colored as the main monocyte cluster. Select this cluster, and take an image of the resulting plot selection that you see. Does this small cluster of points in the UMAP plot also form a distinct cluster in the t-SNE plot? Does this small cluster of points in the UMAP plot also form a cluster in the PCA plot? You can make this call by eyeballing it.
+
+import altair as alt
+import pandas as pd
+
+# Assuming lung_scrnaseq_combined_DF is already defined and contains the necessary data
+
+# Create an interval selection
+selection = alt.selection_interval(encodings=['x', 'y'])
+
+# Base chart with selection for UMAP1 vs. UMAP2
+umap_chart = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='UMAP1',
+    y='UMAP2',
+    color='cellType'
+).add_params(
+    selection
+).properties(
+    width=300,
+    height=300,
+    title='UMAP1 vs UMAP2'
+)
+
+# Linked chart for tSNE1 vs. tSNE2
+tsne_chart = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='TSNE1',
+    y='TSNE2',
+    color=alt.condition(selection, 'cellType', alt.value('lightgray'))
+).properties(
+    width=300,
+    height=300,
+    title='TSNE1 vs TSNE2'
+)
+
+# Linked chart for PC1 vs. PC2
+pca_chart = alt.Chart(lung_scrnaseq_combined_DF).mark_point().encode(
+    x='PC1',
+    y='PC2',
+    color=alt.condition(selection, 'cellType', alt.value('lightgray'))
+).properties(
+    width=300,
+    height=300,
+    title='PC1 vs PC2'
+)
+
+# Combine all plots
+combined_plots = alt.hconcat(umap_chart, tsne_chart, pca_chart).resolve_legend(
+    color="independent"
+)
+
+combined_plots
+
+
+### Analysis:
+
+1. **UMAP Plot (UMAP1 vs. UMAP2)**:
+   - In the UMAP plot, the main monocyte cluster (orange) is located around the center-right region.
+   - There is a small cluster near the main monocyte cluster that appears to be slightly mixed with other cell types (not uniformly orange).
+
+2. **t-SNE Plot (TSNE1 vs. TSNE2)**:
+   - In the t-SNE plot, the monocyte cluster is located towards the upper-right region.
+   - The small cluster observed in the UMAP plot near the main monocyte cluster also forms a somewhat distinct cluster in the t-SNE plot. This cluster appears to be located just below the main monocyte cluster, showing a slight mix of cell types.
+
+3. **PCA Plot (PC1 vs. PC2)**:
+   - In the PCA plot, the main monocyte cluster is located towards the right side of the plot.
+   - The small cluster near the main monocyte cluster observed in the UMAP plot does not form a distinct cluster in the PCA plot. It appears to be more spread out and mixed with other cell types, lacking clear separation.
+
+### Conclusion:
+- The small cluster near the main monocyte cluster in the **UMAP plot** does form a somewhat distinct cluster in the **t-SNE plot**, although it is not as uniformly colored as the main monocyte cluster.
+- This small cluster does not form a distinct cluster in the **PCA plot**. Instead, it appears to be more spread out and intermixed with other cell types, indicating a lack of clear separation in the PCA space.
+# Question 6
+
+Using **scanpy** and the **pbmc_data_master.h5ad** file, run the clustering using Leidan and UMAP as demonstrated in class and then subset out the CD4, CD8 and NK cells within the pbmc file. Repeat the leiden clustering and UMAP analyses on the new dataset and play around with the values for n_neighbors and resolution.
+
+In this context, using 'CD8A', "IL7R", "NKG7" as markers to identify CD8, CD4 and NK cells respectively, what values for n_neighbors and resolution does the leiden clustering of the UMAP give the best clusters to distinguish the 3 distinct cell types?
+
+Note: The code to load the pbmc_data_master file and perform initial clustering and labelling has been given below. Use this to subset out the clusters of interest.
+
+
+
+import scanpy as sc
+
+# Define the file path
+pbmc_file = r"C:\Users\Kathleen\OneDrive\Documents\Bioinformatics Spring 2024\Code\Class 13\pbmc_data_master.h5ad"
+
+# Read the .h5ad file
+pbmc_scrnaseq = sc.read_h5ad(pbmc_file)
+
+# Display the AnnData object
+pbmc_scrnaseq
+
+# Run PCA to compute the default number of components
+sc.tl.pca(pbmc_scrnaseq, svd_solver="arpack")
+
+# computer neighbors
+sc.pp.neighbors(pbmc_scrnaseq, n_neighbors=10, n_pcs=40)
+
+# compute leidon clustering
+sc.tl.leiden(
+    pbmc_scrnaseq,
+    resolution=0.9, #impact clusters
+    random_state=0,
+    flavor="igraph",
+    n_iterations=2,
+    directed=False,
+)
+# Run UMAP
+sc.tl.umap(pbmc_scrnaseq)
+
+# Plot UMAP clusters using leiden clustering
+#sc.pl.umap(dat, color=["leiden"])
+
+# Cluster by cell type
+new_cluster_names = [
+    "CD4 T",
+    "B",
+    "FCGR3A+ Monocytes",
+    "NK",
+    "CD8 T",
+    "CD14+ Monocytes",
+    "Dendritic",
+    "Megakaryocytes",
+]
+pbmc_scrnaseq.rename_categories("leiden", new_cluster_names)
+
+# Plot UMAP with new cluster labels
+sc.pl.umap(
+    pbmc_scrnaseq, color="leiden", legend_loc="on data", title="", frameon=False)
+# Question 6 Repeat of Leiden CLustering and UMAP analyses 
+
+ Repeat the leiden clustering and UMAP analyses on the new dataset and play around with the values for n_neighbors and resolution.
+
+In this context, using 'CD8A', "IL7R", "NKG7" as markers to identify CD8, CD4 and NK cells respectively, what values for n_neighbors and resolution does the leiden clustering of the UMAP give the best clusters to distinguish the 3 distinct cell types?
+
+Note: The code to load the pbmc_data_master file and perform initial clustering and labelling has been given below. Use this to subset out the clusters of interest.
+
+import scanpy as sc
+
+# Load the PBMC dataset
+pbmc_data = sc.read('pbmc_data_master.h5ad')
+
+# Run PCA to compute the default number of components
+sc.tl.pca(pbmc_data, svd_solver='arpack')
+
+# Compute neighbors
+sc.pp.neighbors(pbmc_data, n_neighbors=10, n_pcs=40)
+
+# Compute Leiden clustering
+sc.tl.leiden(pbmc_data, resolution=0.9, random_state=0, flavor='igraph', n_iterations=2, directed=False)
+
+
+
+# Run UMAP
+sc.tl.umap(pbmc_data)
+
+# Plot UMAP clusters using Leiden clustering
+#sc.pl.umap(pbmc_data, color=['leiden'])
+
+# Cluster by cell type
+new_cluster_names = [
+    "CD4 T", "B", "FCGR3A+ Monocytes", "NK", "CD8 T", "CD14+ Monocytes", "Dendritic", "Megakaryocytes"
+]
+pbmc_data.rename_categories('leiden', new_cluster_names)
+
+# Plot UMAP with new cluster labels
+sc.pl.umap(pbmc_data, color='leiden', legend_loc='on data', title='', frameon=False)
+
+# Subset CD4, CD8, and NK cells
+cell_types_of_interest = ['CD4 T', 'CD8 T', 'NK']
+subset_pbmc = pbmc_data[pbmc_data.obs['leiden'].isin(cell_types_of_interest)]
+cell_types_of_interest
+subset_pbmc
+# Run PCA on the subset
+sc.tl.pca(subset_pbmc, svd_solver='arpack')
+
+# Try different values for n_neighbors and resolution
+n_neighbors_values = [10, 15, 20]
+resolution_values = [0.5, 0.8, 1.0]
+
+
+
+
+n_neighbors_values # sanity check
+resolution_values # sanity check 
+# Function to run clustering and UMAP with given parameters
+def run_clustering_and_umap(data, n_neighbors, resolution):
+    sc.pp.neighbors(data, n_neighbors=n_neighbors, n_pcs=40)
+    sc.tl.leiden(data, resolution=resolution, random_state=0, flavor='igraph', n_iterations=2, directed=False)
+    sc.tl.umap(data)
+    return data
+# Iterate over combinations of n_neighbors and resolution
+for n_neighbors in n_neighbors_values:
+    for resolution in resolution_values:
+        print(f'Running clustering with n_neighbors={n_neighbors} and resolution={resolution}')
+        clustered_data = run_clustering_and_umap(subset_pbmc.copy(), n_neighbors, resolution)
+        sc.pl.umap(clustered_data, color='leiden', legend_loc='on data', title=f'n_neighbors={n_neighbors}, resolution={resolution}', frameon=False)
+
+# Use markers to identify cell types
+markers = ['CD8A', 'IL7R', 'NKG7']
+
+# Plot the marker genes
+sc.pl.umap(clustered_data, color=markers)
+
+###  Data Analysis for Question 6 
+
+To determine which clusters correspond to CD8A, IL7R, and NKG7 in the UMAP plots,  look at the color gradient bars on the right side of each plot. The colors indicate the expression levels of the markers:
+
+1. **CD8A**:
+   - The UMAP plot on the left shows the expression of the CD8A marker.
+   - The color gradient ranges from purple (low expression) to yellow (high expression).
+   - Cells with high expression of CD8A will be colored yellow, indicating the CD8 T cells.
+
+2. **IL7R**:
+   - The UMAP plot in the middle shows the expression of the IL7R marker.
+   - The color gradient ranges from purple (low expression) to yellow (high expression).
+   - Cells with high expression of IL7R will be colored yellow, indicating the CD4 T cells.
+
+3. **NKG7**:
+   - The UMAP plot on the right shows the expression of the NKG7 marker.
+   - The color gradient ranges from purple (low expression) to yellow (high expression).
+   - Cells with high expression of NKG7 will be colored yellow, indicating the NK cells.
+
+### Interpretation:
+- Look for clusters in each plot where the cells are colored towards the yellow end of the gradient.
+- These clusters represent cells with high expression of the respective marker gene.
+- Compare the locations of these high-expression clusters across the three plots to identify distinct populations of CD8 T cells, CD4 T cells, and NK cells.
+
+From these plots, it appears that:
+- **CD8 T cells** (CD8A high expression) are located towards the top-left cluster in the UMAP plot.
+- **CD4 T cells** (IL7R high expression) are distributed more broadly but are prominently seen in the central region.
+- **NK cells** (NKG7 high expression) are clustered towards the right side of the UMAP plot.
+
+
+
+To determine the best values for `n_neighbors` and `resolution` to distinguish CD4, CD8, and NK cells, analyze the clustering results shown in y Specifically,  look at how well the clusters corresponding to the markers `CD8A`, `IL7R`, and `NKG7` are separated in the UMAP plots.
+
+
+
+- **Markers Identification:**
+  - `CD8A` identifies CD8 T cells.
+  - `IL7R` identifies CD4 T cells.
+  - `NKG7` identifies NK cells.
+
+### UMAP and Leiden Clustering Results:
+
+1. **n_neighbors=20, resolution=0.8**:
+   - This setting shows fairly distinct clusters. However, the clusters are not completely isolated from each other.
+   - `CD8A`, `IL7R`, and `NKG7` appear somewhat intermixed, indicating that this setting might not be optimal.
+
+2. **n_neighbors=20, resolution=1.0**:
+   - There are more clusters, but the separation is not clear, especially within the main cell types.
+   - Some clusters are well-defined, but others are more mixed, indicating over-clustering.
+
+3. **n_neighbors=15, resolution=1.0**:
+   - This setting also shows a higher number of clusters.
+   - It provides a better separation compared to previous settings, but there is still some mixing within the clusters.
+
+4. **n_neighbors=20, resolution=0.5**:
+   - This setting results in only two clusters, which are too broad and do not effectively distinguish the three cell types.
+
+5. **n_neighbors=15, resolution=0.5**:
+   - Similar to the previous setting, only two clusters are formed, which are not suitable for distinguishing the three cell types.
+
+6. **n_neighbors=15, resolution=0.8**:
+   - This setting shows a reasonable number of clusters with some separation.
+   - Clusters appear to be fairly well-defined, but there is still some mixing.
+
+7. **n_neighbors=10, resolution=0.5**:
+   - This setting shows two clusters, similar to the previous low-resolution settings.
+   - Not effective for distinguishing the three cell types.
+
+8. **n_neighbors=10, resolution=0.8**:
+   - This setting shows better-defined clusters.
+   - Clusters are more distinct, with less mixing compared to other settings.
+
+9. **n_neighbors=10, resolution=1.0**:
+   - This setting shows a high number of clusters, leading to some over-clustering.
+   - Clusters are fairly well-defined but with some degree of mixing.
+
+### Conclusion:
+
+Based on the analysis of the clustering results:
+- The setting **n_neighbors=10, resolution=0.8** provides the best separation for distinguishing CD8, CD4, and NK cells. This is evident from the more distinct clustering observed in the UMAP plots.
+
+### Visualization:
+
+- **UMAP Plots with Markers**:
+   - `CD8A` (CD8 T cells) are predominantly in one cluster.
+   - `IL7R` (CD4 T cells) are predominantly in another cluster.
+   - `NKG7` (NK cells) are predominantly in a separate cluster.
+
+The clustering setting `n_neighbors=10, resolution=0.8` shows distinct clusters for the three cell types, with minimal overlap, making it the most effective for distinguishing CD4, CD8, and NK cells in this context.
+
