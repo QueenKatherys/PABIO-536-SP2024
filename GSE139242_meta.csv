@@ -1,0 +1,17 @@
+SampleID,CellType,Source,Replicate
+CD4_thymus_1,CD4,thymus,1
+CD4_thymus_2,CD4,thymus,2
+CD4_thymus_3,CD4,thymus,3
+CD4_thymus_4,CD4,thymus,4
+CD4_bloodinfant_1,CD4,blood,1
+CD4_bloodinfant_2,CD4,blood,2
+CD4_bloodinfant_3,CD4,blood,3
+CD4_bloodinfant_4,CD4,blood,4
+CD8_thymus_1,CD8,thymus,1
+CD8_thymus_2,CD8,thymus,2
+CD8_thymus_3,CD8,thymus,3
+CD8_thymus_4,CD8,thymus,4
+CD8_thymus_5,CD8,thymus,5
+CD8_bloodinfant_1,CD8,blood,1
+CD8_bloodinfant_2,CD8,blood,2
+CD8_bloodinfant_3,CD8,blood,3
