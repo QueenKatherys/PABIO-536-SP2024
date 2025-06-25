@@ -1,4 +1,4 @@
-🧬 PABIO 536 – Bioinformatics and Gene Sequence Analysis
+####🧬 PABIO 536 – Bioinformatics and Gene Sequence Analysis
 Coursework Repository | Spring 2024 | Kathleen Ashbaker
 
 This repository contains completed assignments from PABIO 536: Bioinformatics and Gene Sequence Analysis, a graduate-level course at the University of Washington. The course focuses on the nature and relevance of molecular sequence data, including the use of computational tools for analyzing DNA and protein sequences, querying biological databases, and performing genomic comparisons.
