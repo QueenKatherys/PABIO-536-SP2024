@@ -5,6 +5,7 @@ This repository contains completed assignments from PABIO 536: Bioinformatics an
 
 ### 📁 Repository Contents
 File	Description
+
 Homework_1_KA.ipynb	Introduction to sequence databases and basic data parsing
 Homework_2.ipynb	Sequence retrieval, FASTA formatting, and BLAST queries
 Homework_3KA-1.ipynb	Multiple sequence alignment and conservation analysis
