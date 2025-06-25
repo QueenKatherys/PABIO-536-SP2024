@@ -4,8 +4,7 @@
 This repository contains completed assignments from PABIO 536: Bioinformatics and Gene Sequence Analysis, a graduate-level course at the University of Washington. The course focuses on the nature and relevance of molecular sequence data, including the use of computational tools for analyzing DNA and protein sequences, querying biological databases, and performing genomic comparisons.
 
 ### 📁 Repository Contents
-File	Description
-
+File Name	Description
 Homework_1_KA.ipynb	Introduction to sequence databases and basic data parsing
 Homework_2.ipynb	Sequence retrieval, FASTA formatting, and BLAST queries
 Homework_3KA-1.ipynb	Multiple sequence alignment and conservation analysis
