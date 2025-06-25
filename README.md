@@ -47,7 +47,7 @@ Gene and protein function annotation
 ### 📬 Contact
 For questions, collaboration, or dataset requests, please contact:
 
-Kathleen Ashbaker
+#### Kathleen Ashbaker
 📧 Email: kashba@uw.edu
 
 📘 License
