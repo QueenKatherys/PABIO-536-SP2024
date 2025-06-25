@@ -14,9 +14,6 @@ Homework6KA.ipynb	Comparative genomics: ortholog and paralog identification
 Homework_8.ipynb	Gene function annotation using ontology tools
 Homework_9.ipynb	Integrative analysis of genomic data sets
 
-### ⚠️ Note: Homework 7 is not included in this repository due to file size constraints.
-All datasets are available upon request. Please contact the author using the email below.
-
 ### 🔧 Tools & Technologies
 Assignments were completed using a combination of:
 
