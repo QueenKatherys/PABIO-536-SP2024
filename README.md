@@ -1,9 +1,9 @@
-#### 🧬 PABIO 536 – Bioinformatics and Gene Sequence Analysis
+# 🧬 PABIO 536 – Bioinformatics and Gene Sequence Analysis
 Coursework Repository | Spring 2024 | Kathleen Ashbaker
 
 This repository contains completed assignments from PABIO 536: Bioinformatics and Gene Sequence Analysis, a graduate-level course at the University of Washington. The course focuses on the nature and relevance of molecular sequence data, including the use of computational tools for analyzing DNA and protein sequences, querying biological databases, and performing genomic comparisons.
 
-📁 Repository Contents
+### 📁 Repository Contents
 File	Description
 Homework_1_KA.ipynb	Introduction to sequence databases and basic data parsing
 Homework_2.ipynb	Sequence retrieval, FASTA formatting, and BLAST queries
@@ -14,10 +14,10 @@ Homework6KA.ipynb	Comparative genomics: ortholog and paralog identification
 Homework_8.ipynb	Gene function annotation using ontology tools
 Homework_9.ipynb	Integrative analysis of genomic data sets
 
-⚠️ Note: Homework 7 is not included in this repository due to file size constraints.
+### ⚠️ Note: Homework 7 is not included in this repository due to file size constraints.
 All datasets are available upon request. Please contact the author using the email below.
 
-🔧 Tools & Technologies
+### 🔧 Tools & Technologies
 Assignments were completed using a combination of:
 
 Python (with Biopython, pandas, matplotlib)
@@ -28,13 +28,13 @@ Sequence alignment software (e.g., Clustal Omega, MUSCLE)
 
 Databases: NCBI GenBank, UniProt, PDB, Pfam
 
-📚 Course Information
+### 📚 Course Information
 Course: PABIO 536 – Bioinformatics and Gene Sequence Analysis
 Quarter: Spring 2024
 Institution: University of Washington
 Instructor: [Instructor Name, if applicable]
 
-Topics covered include:
+### Topics covered include:
 
 Nucleotide and protein sequence analysis
 
@@ -44,7 +44,7 @@ Comparative genomics and phylogenetics
 
 Gene and protein function annotation
 
-📬 Contact
+### 📬 Contact
 For questions, collaboration, or dataset requests, please contact:
 
 Kathleen Ashbaker
